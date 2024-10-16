@@ -5,6 +5,16 @@ from fastapi import FastAPI, HTTPException
 from modules.link_to_id import url_to_mediaid
 from modules.comment import comment_on_post
 
+#client setup
+from dotenv import load_dotenv
+load_dotenv()
+import os
+from supabase import create_client
+
+url = os.environ.get("SUPABASE_URL")
+key = os.environ.get("SUPABASE_KEY")
+supabase = create_client(url, key)
+
 app = FastAPI()
 
 # Configure logging
@@ -128,6 +138,6 @@ async def execute_comment_bot():
         logger.error(f"An error occurred during execution: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-# if __name__ == "__main__":
-#     import uvicorn
-#     uvicorn.run(app, port=8000)
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, port=8000)
