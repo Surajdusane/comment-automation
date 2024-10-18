@@ -1,11 +1,11 @@
 import logging
 from datetime import datetime, timedelta
 from client.client import supabase
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException
 from modules.link_to_id import url_to_mediaid
 from modules.comment import comment_on_post
 
-# Client setup
+#client setup
 from dotenv import load_dotenv
 load_dotenv()
 import os
@@ -102,25 +102,8 @@ def update_session_usage(session_id, total_use):
     except Exception as e:
         logger.error(f"Failed to update usage for session {session_id}: {e}")
 
-def process_comment_task(api_parameters):
-    comments_posted = 0
-    for params in api_parameters:
-        try:
-            comment_results = comment_on_post(params["session_id"], params["post_id"], params["comment_text"])
-            if comment_results:
-                execution_time = datetime.now().isoformat()
-                update_task_status(params["tasks_db_id"], True, execution_time)
-                update_session_usage(params["session_id_db_id"], params["total_use"])
-                comments_posted += 1
-                logger.info(f"Comment posted successfully for task {params['tasks_db_id']}")
-            else:
-                update_task_status(params["tasks_db_id"], False)
-                logger.warning(f"Failed to post comment for task {params['tasks_db_id']}")
-        except Exception as e:
-            logger.error(f"Error processing task {params['tasks_db_id']}: {e}")
-
 @app.get("/execute-comment-bot")
-async def execute_comment_bot(background_tasks: BackgroundTasks):
+async def execute_comment_bot():
     try:
         session_ids = get_valid_session_ids()
         if not session_ids:
@@ -133,17 +116,28 @@ async def execute_comment_bot(background_tasks: BackgroundTasks):
             return {"message": "No tasks found", "comments_posted": 0}
 
         api_parameters = prepare_api_parameters(session_ids, tasks)
-        
-        # Run the task processing in the background
-        background_tasks.add_task(process_comment_task, api_parameters)
 
-        # Return a quick response to avoid long execution time
-        return {"message": "OK"}
+        comments_posted = 0
+        for params in api_parameters:
+            try:
+                comment_results = comment_on_post(params["session_id"], params["post_id"], params["comment_text"])
+                if comment_results:
+                    execution_time = datetime.now().isoformat()
+                    update_task_status(params["tasks_db_id"], True, execution_time)
+                    update_session_usage(params["session_id_db_id"], params["total_use"])
+                    comments_posted += 1
+                    logger.info(f"Comment posted successfully for task {params['tasks_db_id']}")
+                else:
+                    update_task_status(params["tasks_db_id"], False)
+                    logger.warning(f"Failed to post comment for task {params['tasks_db_id']}")
+            except Exception as e:
+                logger.error(f"Error processing task {params['tasks_db_id']}: {e}")
 
+        return {"message": "Execution completed", "comments_posted": comments_posted}
     except Exception as e:
         logger.error(f"An error occurred during execution: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-# if __name__ == "__main__":
-#     import uvicorn
-#     uvicorn.run(app, port=8000)
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, port=8000)
