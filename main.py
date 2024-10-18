@@ -119,6 +119,10 @@ def process_comment_task(api_parameters):
         except Exception as e:
             logger.error(f"Error processing task {params['tasks_db_id']}: {e}")
 
+@app.get("/")
+async def root():
+    return {"ok"}
+
 @app.get("/execute-comment-bot")
 async def execute_comment_bot(background_tasks: BackgroundTasks):
     try:
